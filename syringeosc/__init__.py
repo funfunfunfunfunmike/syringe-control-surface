@@ -330,6 +330,26 @@ class SyringeOSC:
 
         self.clipParameters[track] = clipListeners
 
+        # Report the newly watched clip's current playing status right away,
+        # so the Engine's well state always matches Ableton when a well's clip
+        # changes. Without this, loading a clip into a well whose old clip was
+        # playing left the well stuck in PLAY_TRIGGERED: the Engine stops the
+        # old clip just before sending watchSlot, but Ableton only flips the
+        # old clip's playing_status after we've already removed its listener
+        # above, so clipStopped was never sent. That left the well's play
+        # button lit and its idle pulse running with nothing playing.
+        #
+        # This mirrors playing_status_change, minus its clipAtTempo
+        # bookkeeping, which belongs to actual playback transitions.
+        # If playAfterWatch is set, the launch below is reported by the
+        # listener as usual.
+        if clipObject.is_triggered == 1:
+          self.oscSend("playWillTrigger", track, clip)
+        elif clipObject.is_playing == 1:
+          self.oscSend("playTriggered", track, clip)
+        else:
+          self.oscSend("clipStopped", track, clip)
+
         if playAfterWatch == 1:
           launchClip(track, clip)
 
