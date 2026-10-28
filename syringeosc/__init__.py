@@ -62,7 +62,7 @@ DELAY_PARAMS = (
     ("Sends", "B-Delay"),
     ("Returns/Plustype dB Managed Delay", "Delay_Feedback"),
     ("Returns/Plustype dB Managed Delay", "Delay_Offset"),
-    ("Returns/Plustype dB Managed Delay", "Delay_Phase"),
+    ("Returns/Plustype dB Managed Delay", "Delay_Phaser"),
 )
 
 class SyringeOSC:
