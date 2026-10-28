@@ -179,6 +179,13 @@ class SyringeOSC:
         if parameter is None:
             self.logger.warning("map_cc_by_name: '%s' not found on track %d (path: %s)" % (
                 param_name, track_index, device_path))
+
+            # Name what the return tracks hold, so the path can be corrected
+            if device_path.startswith("Returns/"):
+                for r in getSong().return_tracks:
+                    for d in r.devices:
+                        self.logger.warning("  return '%s' device '%s' params %s" % (
+                            r.name, d.name, [p.name for p in d.parameters]))
             return
         self.abletonOSCManager.midi_mappings[(channel, cc)] = parameter
         self.abletonOSCManager.request_rebuild_midi_map()
