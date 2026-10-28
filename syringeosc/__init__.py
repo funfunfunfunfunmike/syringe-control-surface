@@ -13,10 +13,7 @@ parameterDefaults = {
     # This Gain used to be "Track_Volume" before I started using utility
     "Track_Volume": .7,
     "Gain": .7,
-    "Delay": 0,
-    "Delay_Feedback": .75,
-    "Delay_Time": .5,
-    "Delay_Mod": 0,
+    "B-Delay": 0,
     "Wet/Dry": 0,
     "1": 0,
     "1/2": 0,
@@ -56,6 +53,17 @@ parameterDefaults = {
     "Follow_Song": 1,
     "View": "Detail/Clip"
 }
+
+# FX 4's delay, as (device path, parameter name) for _find_parameter; the
+# Engine's Constants.widgetIdToMidiCC maps the same names. The return's
+# macros are shared by every FX track, so they are left out of
+# parameterDefaults: resetting one track must not reset the delay for all.
+DELAY_PARAMS = (
+    ("Sends", "B-Delay"),
+    ("Returns/Plustype dB Managed Delay", "Delay_Feedback"),
+    ("Returns/Plustype dB Managed Delay", "Delay_Offset"),
+    ("Returns/Plustype dB Managed Delay", "Delay_Phase"),
+)
 
 class SyringeOSC:
 
@@ -1464,14 +1472,17 @@ class SyringeOSC:
         self.registerTrackParam(parmArray, fxTrackNum,
                                 track.devices[1].parameters[1])
 
-        # Delay
-        # Delay_Feedback
-        # Delay_Time
-        # Delay_Mod
-        for paramIndex in range(1, 5):
-          self.registerTrackParam(
-              parmArray, fxTrackNum,
-              track.devices[2].parameters[paramIndex])
+        # 10/28/26 - FX 4's delay moved off the "Post Gain Delay" rack, which
+        # stays on the track but is no longer played from the wells (its
+        # Delay_Feedback macro would collide with the return's by name).
+        # Now: this track's B-Delay send and the B-Delay return's macros
+        # (DELAY_PARAMS), found by name.
+        for path, name in DELAY_PARAMS:
+          param = _find_parameter(track, path, name)
+          if param is None:
+            self.logger.warning("registerParams: '%s' not found (path: %s)" % (name, path))
+            continue
+          self.registerTrackParam(parmArray, fxTrackNum, param)
 
         self.trackParameters.append(parmArray)
 
@@ -1810,9 +1821,22 @@ def _find_parameter(track, device_path, param_name):
     then find param_name in the final device's parameters.
 
     device_path is slash-separated device names, e.g. "Plustype Well Rack/Effects 2".
-    param_name is the Ableton parameter name on the final device (may contain '/')."""
+    param_name is the Ableton parameter name on the final device (may contain '/').
+
+    Two special first components:
+      "Sends"            this track's sends, matched by name, e.g. "B-Delay"
+      "Returns/<device>" a device on any return track, shared by every track"""
     components = device_path.split("/")
-    device = _find_device_by_name(list(track.devices), components[0])
+    if components == ["Sends"]:
+        for send in track.mixer_device.sends:
+            if send.name == param_name:
+                return send
+        return None
+    devices = list(track.devices)
+    if components[0] == "Returns":
+        devices = [d for r in getSong().return_tracks for d in r.devices]
+        components = components[1:]
+    device = _find_device_by_name(devices, components[0])
     if device is None:
         return None
     for component in components[1:]:
