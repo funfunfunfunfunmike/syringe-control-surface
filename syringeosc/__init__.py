@@ -60,9 +60,9 @@ parameterDefaults = {
 # parameterDefaults: resetting one track must not reset the delay for all.
 DELAY_PARAMS = (
     ("Sends", "B-Delay"),
-    ("Returns/Plustype dB Managed Delay", "Delay_Feedback"),
-    ("Returns/Plustype dB Managed Delay", "Delay_Offset"),
-    ("Returns/Plustype dB Managed Delay", "Delay_Phaser"),
+    ("Returns/B-Delay/Plustype dB Managed Delay", "Delay_Feedback"),
+    ("Returns/B-Delay/Plustype dB Managed Delay", "Delay_Offset"),
+    ("Returns/B-Delay/Plustype dB Managed Delay", "Delay_Phaser"),
 )
 
 class SyringeOSC:
@@ -1832,7 +1832,8 @@ def _find_parameter(track, device_path, param_name):
 
     Two special first components:
       "Sends"            this track's sends, matched by name, e.g. "B-Delay"
-      "Returns/<device>" a device on any return track, shared by every track"""
+      "Returns/<return track>/<device>" a device on that return track, shared
+        by every track (return tracks can hold devices of the same name)"""
     components = device_path.split("/")
     if components == ["Sends"]:
         for send in track.mixer_device.sends:
@@ -1841,8 +1842,11 @@ def _find_parameter(track, device_path, param_name):
         return None
     devices = list(track.devices)
     if components[0] == "Returns":
-        devices = [d for r in getSong().return_tracks for d in r.devices]
-        components = components[1:]
+        returns = [r for r in getSong().return_tracks if r.name == components[1]]
+        if not returns:
+            return None
+        devices = list(returns[0].devices)
+        components = components[2:]
     device = _find_device_by_name(devices, components[0])
     if device is None:
         return None
